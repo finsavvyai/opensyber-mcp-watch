@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opensyber-mcp-watch"
+version = "0.1.0"
+description = "MCP rug-pull detection (Python wrapper for @opensyber/mcp-watch)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "OpenSyber", email = "support@opensyber.cloud" }]
+keywords = ["mcp", "model-context-protocol", "ai-security", "drift-detection", "prompt-injection"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+]
+
+[project.urls]
+Homepage = "https://opensyber.cloud"
+Repository = "https://github.com/finsavvyai/opensyber-mcp-watch"
+Issues = "https://github.com/finsavvyai/opensyber-mcp-watch/issues"
+
+[project.scripts]
+opensyber-mcp-watch = "opensyber_mcp_watch.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,69 @@
+{
+  "name": "@opensyber/mcp-watch",
+  "version": "0.1.0",
+  "description": "MCP rug-pull detection. Records SHA-256 fingerprints per tool, per server, across days — catches what session-scoped scanners miss.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "opensyber-mcp-watch": "./dist/cli.js",
+    "mcp-watch": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'lint: skip (no eslint config)'",
+    "prepublishOnly": "pnpm build && pnpm test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.6.0",
+    "kleur": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-security",
+    "ai-agents",
+    "prompt-injection",
+    "security",
+    "drift-detection",
+    "fingerprint",
+    "rug-pull",
+    "opensyber"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/finsavvyai/opensyber-mcp-watch.git"
+  },
+  "homepage": "https://opensyber.cloud",
+  "bugs": "https://github.com/finsavvyai/opensyber-mcp-watch/issues",
+  "author": "OpenSyber <support@opensyber.cloud>"
+}
