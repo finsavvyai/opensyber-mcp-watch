@@ -1,0 +1,29 @@
+{
+  "name": "@opensyber/mcp-watch-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "OpenSyber cloud layer: multi-tenant ingest + analysis service for MCP tool fingerprints. Phase 1 scaffold.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/index.js",
+    "test": "echo 'server: no tests yet'",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'lint: skip (no eslint config)'"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@opensyber/mcp-watch-core": "workspace:*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/finsavvyai/opensyber-mcp-watch.git",
+    "directory": "packages/server"
+  },
+  "author": "OpenSyber <support@opensyber.cloud>"
+}

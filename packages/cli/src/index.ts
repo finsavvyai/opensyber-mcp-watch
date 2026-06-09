@@ -1,5 +1,12 @@
-export { fingerprintTool, canonicalize, canonicalJson, type ToolDef } from './fingerprint.js';
-export { classifyDrift, type DriftResult, type DriftVerdict } from './differ.js';
+export {
+  fingerprintTool,
+  canonicalize,
+  canonicalJson,
+  classifyDrift,
+  type ToolDef,
+  type DriftResult,
+  type DriftVerdict,
+} from '@opensyber/mcp-watch-core';
 export { fetchToolsList, type FetchToolsOpts } from './mcp-client.js';
 export { Storage, defaultDbPath } from './storage.js';
 export { loadConfig, saveConfig, defaultConfigPath, type WatchConfig, type ServerConfig } from './config.js';

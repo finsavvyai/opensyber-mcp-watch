@@ -1,4 +1,4 @@
-import type { DriftResult } from './differ.js';
+import type { DriftResult } from '@opensyber/mcp-watch-core';
 import { c, timestamp } from './output.js';
 
 export interface DriftAlert {

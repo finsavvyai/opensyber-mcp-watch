@@ -1,0 +1,51 @@
+{
+  "name": "@opensyber/mcp-watch-core",
+  "version": "0.1.0",
+  "description": "Transport- and storage-agnostic MCP fingerprinting and drift classification. Shared by the mcp-watch CLI and the OpenSyber cloud layer.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'lint: skip (no eslint config)'"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-security",
+    "fingerprint",
+    "drift-detection",
+    "rug-pull",
+    "opensyber"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/finsavvyai/opensyber-mcp-watch.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://opensyber.cloud",
+  "bugs": "https://github.com/finsavvyai/opensyber-mcp-watch/issues",
+  "author": "OpenSyber <support@opensyber.cloud>"
+}

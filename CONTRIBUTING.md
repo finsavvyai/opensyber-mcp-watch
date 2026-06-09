@@ -7,11 +7,19 @@ Thanks for considering a contribution. This is a small, opinionated package — 
 ```bash
 git clone https://github.com/finsavvyai/opensyber-mcp-watch.git
 cd opensyber-mcp-watch
-pnpm install          # or npm install
-pnpm test             # runs vitest
-pnpm build            # builds dist/
+pnpm install          # installs the whole workspace
+pnpm test             # vitest across all packages
+pnpm build            # builds every package's dist/
 pnpm typecheck
 ```
+
+This is a pnpm workspace:
+
+- `packages/core` (`@opensyber/mcp-watch-core`) — fingerprinting + drift rules, no deps/no I/O.
+- `packages/cli` (`@opensyber/mcp-watch`) — the local watcher.
+- `packages/server` (`@opensyber/mcp-watch-server`) — the hosted cloud layer (see [docs/cloud-architecture.md](docs/cloud-architecture.md)).
+
+Run a single package with `pnpm --filter <name> <script>`.
 
 Node 20+ required. `better-sqlite3` is a native module — `pnpm rebuild better-sqlite3` if you see binding errors after a Node upgrade.
 

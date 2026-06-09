@@ -1,4 +1,4 @@
-import type { ToolDef } from './fingerprint.js';
+import type { ToolDef } from '@opensyber/mcp-watch-core';
 
 interface JsonRpcResponse {
   jsonrpc: '2.0';

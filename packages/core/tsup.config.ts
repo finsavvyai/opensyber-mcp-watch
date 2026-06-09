@@ -1,19 +1,14 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: {
-    index: 'src/index.ts',
-    cli: 'src/cli.ts',
-  },
+  entry: { index: 'src/index.ts' },
   format: ['esm'],
   target: 'node20',
   platform: 'node',
-  dts: { entry: { index: 'src/index.ts' } },
+  dts: true,
   sourcemap: true,
   clean: true,
   splitting: false,
-  shims: false,
   minify: false,
-  banner: ({ format }) => (format === 'esm' ? { js: '#!/usr/bin/env node' } : {}),
   outExtension: () => ({ js: '.js' }),
 });
