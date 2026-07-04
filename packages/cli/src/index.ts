@@ -26,6 +26,14 @@ export {
 } from './config.js';
 export { formatScanJson } from './report-json.js';
 export { detectShadowing, type Shadow } from './shadowing.js';
+export {
+  discover,
+  candidatePaths,
+  parseClientConfig,
+  mergeServers,
+  type Discovered,
+  type DiscoverySource,
+} from './discover.js';
 export { sendWebhookAlerts, interestingAlerts, summaryText, type WebhookResult } from './webhook.js';
 export { scanOnce, watchLoop, type ScanResult, type WatchHandle } from './watcher.js';
 export {

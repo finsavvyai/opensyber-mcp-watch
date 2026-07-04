@@ -1,4 +1,5 @@
 import { initCommand } from './commands/init.js';
+import { discoverCommand } from './commands/discover.js';
 import { scanCommand } from './commands/scan.js';
 import { watchCommand } from './commands/watch.js';
 import { historyCommand } from './commands/history.js';
@@ -15,6 +16,7 @@ usage:
 
 commands:
   init                          one-time setup; writes ~/.opensyber/mcp-watch.config.json
+  discover [--write]            find MCP servers in installed clients (Claude/Cursor/VS Code/…)
   scan [--json]                 one-shot fingerprint of tools, prompts & resources (--json for CI/SIEM)
   watch [--interval 60s]        long-running watcher; prints drift events as they happen
   history <server> <tool>       show fingerprints over time (7 days)
@@ -58,6 +60,8 @@ async function main(): Promise<number> {
       return 0;
     case 'init':
       return initCommand();
+    case 'discover':
+      return discoverCommand(rest);
     case 'scan':
       return scanCommand(rest);
     case 'watch':
