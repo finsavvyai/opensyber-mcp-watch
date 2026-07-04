@@ -1,4 +1,4 @@
-import { loadConfig } from '../config.js';
+import { loadConfig, serverKey } from '../config.js';
 import { Storage } from '../storage.js';
 import { c, timestamp } from '../output.js';
 
@@ -16,7 +16,7 @@ export async function historyCommand(args: string[]): Promise<number> {
   }
   const storage = new Storage();
   try {
-    const rows = storage.history(server.url, toolName, 100);
+    const rows = storage.history(serverKey(server), toolName, 100);
     if (rows.length === 0) {
       process.stdout.write(c.dim(`No history for ${serverName}/${toolName} in last 7 days.\n`));
       return 0;

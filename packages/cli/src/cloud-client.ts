@@ -1,5 +1,6 @@
 import { hostname } from 'node:os';
 import type { CloudConfig, ServerConfig } from './config.js';
+import { serverKey } from './config.js';
 
 export interface CloudObservation {
   toolName: string;
@@ -49,7 +50,7 @@ export async function pushObservations(
   const url = cloud.endpoint.replace(/\/+$/, '') + '/v1/ingest';
   const body = JSON.stringify({
     agentId: opts.agentId ?? hostname(),
-    serverUrl: server.url,
+    serverUrl: serverKey(server),
     observedAt: opts.observedAt ?? Date.now(),
     tools: observations,
   });

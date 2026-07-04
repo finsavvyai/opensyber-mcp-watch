@@ -1,0 +1,32 @@
+name: 'mcp-watch scan'
+description: 'Fingerprint configured MCP servers and fail the build on suspicious rug-pull drift.'
+author: 'OpenSyber'
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  config:
+    description: 'Path to the mcp-watch config JSON (servers to scan).'
+    required: false
+    default: '.opensyber/mcp-watch.config.json'
+  version:
+    description: 'npm version/tag of @opensyber/mcp-watch to run.'
+    required: false
+    default: 'latest'
+  json:
+    description: 'Emit machine-readable JSON (recommended for CI logs/SIEM).'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      env:
+        MCP_WATCH_CONFIG: ${{ inputs.config }}
+      run: |
+        args="scan"
+        if [ "${{ inputs.json }}" = "true" ]; then args="$args --json"; fi
+        # `scan` exits 2 on a suspicious change, which fails this step (and the job).
+        npx -y @opensyber/mcp-watch@${{ inputs.version }} $args

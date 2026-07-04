@@ -1,6 +1,6 @@
 {
   "name": "@opensyber/mcp-watch",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP rug-pull detection. Records SHA-256 fingerprints per tool, per server, across days — catches what session-scoped scanners miss.",
   "license": "MIT",
   "type": "module",
