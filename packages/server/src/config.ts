@@ -4,6 +4,8 @@ export interface ServerConfig {
   databaseUrl: string | null;
   /** Dev/seed keys, `key:org` pairs. Seeded into the memory store only. */
   apiKeys: Array<{ key: string; org: string }>;
+  /** Server secret from which per-org audit-log HMAC keys are derived. */
+  auditSecret: string;
 }
 
 export function loadServerConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -20,5 +22,6 @@ export function loadServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCo
     port: Number(env.PORT ?? 8787),
     databaseUrl: env.DATABASE_URL ?? null,
     apiKeys,
+    auditSecret: env.MCP_WATCH_AUDIT_SECRET ?? 'dev-audit-secret',
   };
 }

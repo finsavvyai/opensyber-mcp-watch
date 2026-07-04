@@ -1,5 +1,6 @@
 import type { DriftVerdict } from '@opensyber/mcp-watch-core';
 import type { FleetEntry } from '../fleet.js';
+import type { ChainVerification } from '../audit.js';
 
 /** Cross-agent divergence is a server-only verdict on top of core's temporal ones. */
 export type ServerVerdict = DriftVerdict | 'fleet-divergence';
@@ -24,6 +25,14 @@ export interface ObservationInput {
   /** canonical JSON of { name, description, inputSchema } */
   canonicalPayload: string;
   observedAt: number;
+}
+
+export interface AuditEntry {
+  seq: number;
+  prevHmac: string;
+  payload: unknown;
+  hmac: string;
+  createdAt: number;
 }
 
 export interface DriftEventInput {
@@ -52,5 +61,10 @@ export interface Store {
   /** Latest fingerprint per agent for a (server, tool) — powers fleet analysis. */
   getFleetFingerprints(orgId: string, serverUrl: string, toolName: string): Promise<FleetEntry[]>;
   saveDriftEvent(input: DriftEventInput): Promise<void>;
+  /** Append a hash-chained audit entry for this org and return it. */
+  appendAudit(orgId: string, payload: unknown, at: number): Promise<AuditEntry>;
+  getAuditChain(orgId: string): Promise<AuditEntry[]>;
+  /** Recompute the org's audit chain and report whether it is intact. */
+  verifyAudit(orgId: string): Promise<ChainVerification>;
   close(): Promise<void>;
 }

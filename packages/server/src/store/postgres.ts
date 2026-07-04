@@ -1,6 +1,7 @@
 import pg from 'pg';
-import type { Store, LastSeen, ObservationInput, DriftEventInput } from './types.js';
+import type { Store, LastSeen, ObservationInput, DriftEventInput, AuditEntry } from './types.js';
 import type { FleetEntry } from '../fleet.js';
+import { chainHmac, deriveOrgKey, verifyChain, GENESIS_HMAC, type ChainVerification } from '../audit.js';
 
 const { Pool } = pg;
 
@@ -12,8 +13,11 @@ const { Pool } = pg;
 export class PgStore implements Store {
   private pool: pg.Pool;
 
-  constructor(connectionString: string) {
+  private readonly auditSecret: string;
+
+  constructor(connectionString: string, auditSecret = 'dev-audit-secret') {
     this.pool = new Pool({ connectionString });
+    this.auditSecret = auditSecret;
   }
 
   async resolveOrg(apiKeyHash: string): Promise<string | null> {
@@ -108,6 +112,62 @@ export class PgStore implements Store {
         input.detectedAt,
       ],
     );
+  }
+
+  async appendAudit(orgId: string, payload: unknown, at: number): Promise<AuditEntry> {
+    const key = deriveOrgKey(this.auditSecret, orgId);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Serialize appends per org so the hash chain has no races.
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [orgId]);
+      const last = await client.query<{ hmac: string }>(
+        `SELECT hmac FROM audit_log WHERE org_id = $1 ORDER BY seq DESC LIMIT 1`,
+        [orgId],
+      );
+      const prevHmac = last.rows[0]?.hmac ?? GENESIS_HMAC;
+      const hmac = chainHmac(prevHmac, payload, key);
+      const inserted = await client.query<{ seq: string }>(
+        `INSERT INTO audit_log (org_id, prev_hmac, payload, hmac, created_at)
+         VALUES ($1, $2, $3::jsonb, $4, to_timestamp($5 / 1000.0))
+         RETURNING seq`,
+        [orgId, prevHmac, JSON.stringify(payload), hmac, at],
+      );
+      await client.query('COMMIT');
+      return { seq: Number(inserted.rows[0]!.seq), prevHmac, payload, hmac, createdAt: at };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getAuditChain(orgId: string): Promise<AuditEntry[]> {
+    const res = await this.pool.query<{
+      seq: string;
+      prev_hmac: string;
+      payload: unknown;
+      hmac: string;
+      created_at: string;
+    }>(
+      `SELECT seq, prev_hmac, payload, hmac,
+              (EXTRACT(EPOCH FROM created_at) * 1000)::bigint AS created_at
+         FROM audit_log WHERE org_id = $1 ORDER BY seq ASC`,
+      [orgId],
+    );
+    return res.rows.map((r) => ({
+      seq: Number(r.seq),
+      prevHmac: r.prev_hmac,
+      payload: r.payload,
+      hmac: r.hmac,
+      createdAt: Number(r.created_at),
+    }));
+  }
+
+  async verifyAudit(orgId: string): Promise<ChainVerification> {
+    const key = deriveOrgKey(this.auditSecret, orgId);
+    return verifyChain(await this.getAuditChain(orgId), key);
   }
 
   async close(): Promise<void> {
