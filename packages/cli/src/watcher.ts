@@ -1,8 +1,9 @@
 import type { WatchConfig, ServerConfig, CloudConfig } from './config.js';
 import { resolveCloud, resolveWebhooks, serverKey } from './config.js';
-import { fetchTools } from './transport.js';
+import { fetchEntities } from './transport.js';
+import { entityStorageName } from './entities.js';
 import { sendWebhookAlerts, interestingAlerts } from './webhook.js';
-import { fingerprintTool, canonicalJson, classifyDrift } from '@opensyber/mcp-watch-core';
+import { fingerprintValue, canonicalJson, classifyDrift } from '@opensyber/mcp-watch-core';
 import type { DriftAlert } from './alert.js';
 import { formatAlertForConsole } from './alert.js';
 import { pushObservations, type CloudObservation, type CloudPushResult } from './cloud-client.js';
@@ -26,68 +27,57 @@ export async function scanOnce(
   const observations: CloudObservation[] = [];
   const key = serverKey(server);
   try {
-    const tools = await fetchTools(server);
+    const entities = await fetchEntities(server);
     const now = Date.now();
-    for (const tool of tools) {
-      const fp = await fingerprintTool(tool);
-      const canonicalPayload = canonicalJson({
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-      });
-      observations.push({
-        toolName: tool.name,
-        fingerprint: fp,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-      });
-      const prior = storage.getCurrent(key, tool.name);
+    for (const entity of entities) {
+      const fp = await fingerprintValue(entity.value);
+      const canonicalPayload = canonicalJson(entity.value);
+      const name = entityStorageName(entity);
+      const prior = storage.getCurrent(key, name);
       const drift = classifyDrift({
         oldFingerprint: prior?.fingerprint ?? null,
         newFingerprint: fp,
         oldDescription: prior?.description ?? '',
-        newDescription: tool.description,
+        newDescription: entity.description,
         oldInputSchema: prior?.inputSchema ?? '',
-        newInputSchema: canonicalJson(tool.inputSchema),
+        newInputSchema: canonicalPayload,
       });
-      const alert: DriftAlert = {
+      alerts.push({
         serverName: server.name,
         serverUrl: key,
-        toolName: tool.name,
+        toolName: name,
         verdict: drift.verdict,
         reason: drift.reason,
         oldFingerprint: prior?.fingerprint ?? null,
         newFingerprint: fp,
         diffSummary: drift.diffSummary,
         observedAt: now,
-      };
-      alerts.push(alert);
+      });
 
       storage.upsertCurrent({
         serverUrl: key,
-        toolName: tool.name,
+        toolName: name,
         fingerprint: fp,
-        description: tool.description,
-        inputSchema: canonicalJson(tool.inputSchema),
+        description: entity.description,
+        inputSchema: canonicalPayload,
         firstSeen: prior?.firstSeen ?? now,
         lastSeen: now,
       });
-      storage.appendHistory({
-        serverUrl: key,
-        toolName: tool.name,
-        fingerprint: fp,
-        canonicalPayload,
-        observedAt: now,
-      });
+      storage.appendHistory({ serverUrl: key, toolName: name, fingerprint: fp, canonicalPayload, observedAt: now });
       if (drift.verdict === 'suspicious-injection' || drift.verdict === 'version-bump') {
         storage.appendDriftEvent({
           serverUrl: key,
-          toolName: tool.name,
+          toolName: name,
           oldFingerprint: prior?.fingerprint ?? '',
           newFingerprint: fp,
           detectedAt: now,
           diffSummary: drift.diffSummary,
         });
+      }
+      // Only tools flow to the cloud — its ingest recomputes a tool-shaped fingerprint.
+      if (entity.kind === 'tool') {
+        const v = entity.value as { inputSchema?: unknown };
+        observations.push({ toolName: entity.name, fingerprint: fp, description: entity.description, inputSchema: v.inputSchema });
       }
     }
     storage.prune(now);
@@ -150,7 +140,7 @@ function defaultOnAlerts(results: ScanResult[]): void {
     );
     if (interesting.length === 0) {
       process.stdout.write(
-        `${c.ok('[ok]')} ${c.dim(ts)} ${r.serverName} — ${r.alerts.length} tools unchanged${cloudSuffix(r)}\n`,
+        `${c.ok('[ok]')} ${c.dim(ts)} ${r.serverName} — ${r.alerts.length} surfaces unchanged${cloudSuffix(r)}\n`,
       );
       continue;
     }

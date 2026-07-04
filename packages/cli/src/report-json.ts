@@ -1,9 +1,11 @@
 import type { ScanResult } from './watcher.js';
+import { detectShadowing } from './shadowing.js';
 
 /** Machine-readable scan output for SIEM ingestion / CI gating (`scan --json`). */
 export function formatScanJson(results: ScanResult[], generatedAt: number): string {
   const all = results.flatMap((r) => r.alerts);
   const count = (v: string): number => all.filter((a) => a.verdict === v).length;
+  const shadowing = detectShadowing(results);
   const report = {
     tool: 'opensyber-mcp-watch',
     generatedAt,
@@ -13,8 +15,10 @@ export function formatScanJson(results: ScanResult[], generatedAt: number): stri
       versionBump: count('version-bump'),
       firstSeen: count('first-seen'),
       unchanged: count('unchanged'),
+      shadowedTools: shadowing.length,
       errors: results.filter((r) => r.error).length,
     },
+    shadowing,
     servers: results.map((r) => ({
       name: r.serverName,
       server: r.serverUrl,

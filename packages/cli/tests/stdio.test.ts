@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fileURLToPath } from 'node:url';
-import { fetchToolsListStdio } from '../src/stdio-client.js';
-import { fetchTools } from '../src/transport.js';
+import { fetchToolsListStdio, fetchEntitiesStdio } from '../src/stdio-client.js';
+import { fetchTools, fetchEntities } from '../src/transport.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/stdio-mcp-server.mjs', import.meta.url));
 const stdioServer = { name: 'fx', command: process.execPath, args: [fixture] };
@@ -16,6 +16,15 @@ describe('stdio transport', () => {
   it('is dispatched by fetchTools when a command is configured', async () => {
     const tools = await fetchTools(stdioServer);
     expect(tools.map((t) => t.name)).toContain('echo');
+  });
+
+  it('fetches tools, prompts and resources in one session', async () => {
+    const entities = await fetchEntitiesStdio(stdioServer, { timeoutMs: 5000 });
+    const byKind = (k: string) => entities.filter((e) => e.kind === k).map((e) => e.name);
+    expect(byKind('tool')).toContain('echo');
+    expect(byKind('prompt')).toContain('greet');
+    expect(byKind('resource')).toContain('file:///readme');
+    expect(await fetchEntities(stdioServer)).toHaveLength(3);
   });
 
   it('rejects when the command cannot be spawned', async () => {

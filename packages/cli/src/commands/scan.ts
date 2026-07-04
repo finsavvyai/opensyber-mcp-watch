@@ -3,6 +3,7 @@ import { Storage } from '../storage.js';
 import { scanOnce, type ScanResult } from '../watcher.js';
 import { formatAlertForConsole } from '../alert.js';
 import { formatScanJson } from '../report-json.js';
+import { detectShadowing } from '../shadowing.js';
 import { c } from '../output.js';
 
 export async function scanCommand(args: string[] = []): Promise<number> {
@@ -30,7 +31,13 @@ export async function scanCommand(args: string[] = []): Promise<number> {
   } finally {
     storage.close();
   }
-  if (json) process.stdout.write(formatScanJson(results, Date.now()) + '\n');
+  if (json) {
+    process.stdout.write(formatScanJson(results, Date.now()) + '\n');
+  } else {
+    for (const s of detectShadowing(results)) {
+      process.stdout.write(c.warn(`[SHADOWING] tool '${s.name}' is exposed by multiple servers: ${s.servers.join(', ')}\n`));
+    }
+  }
   const suspicious = results.some((r) => r.alerts.some((a) => a.verdict === 'suspicious-injection'));
   return suspicious ? 2 : 0;
 }

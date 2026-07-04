@@ -7,9 +7,10 @@ export {
   type DriftResult,
   type DriftVerdict,
 } from '@opensyber/mcp-watch-core';
-export { fetchToolsList, type FetchToolsOpts } from './mcp-client.js';
-export { fetchToolsListStdio, type StdioOpts } from './stdio-client.js';
-export { fetchTools, type TransportOpts } from './transport.js';
+export { fetchToolsList, fetchEntitiesHttp, type FetchToolsOpts } from './mcp-client.js';
+export { fetchToolsListStdio, fetchEntitiesStdio, type StdioOpts } from './stdio-client.js';
+export { fetchTools, fetchEntities, type TransportOpts } from './transport.js';
+export { entityStorageName, type Entity, type EntityKind } from './entities.js';
 export { Storage, defaultDbPath } from './storage.js';
 export {
   loadConfig,
@@ -24,6 +25,7 @@ export {
   type WebhookConfig,
 } from './config.js';
 export { formatScanJson } from './report-json.js';
+export { detectShadowing, type Shadow } from './shadowing.js';
 export { sendWebhookAlerts, interestingAlerts, summaryText, type WebhookResult } from './webhook.js';
 export { scanOnce, watchLoop, type ScanResult, type WatchHandle } from './watcher.js';
 export {
