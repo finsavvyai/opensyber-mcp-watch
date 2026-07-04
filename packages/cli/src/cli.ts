@@ -4,9 +4,10 @@ import { scanCommand } from './commands/scan.js';
 import { watchCommand } from './commands/watch.js';
 import { historyCommand } from './commands/history.js';
 import { diffCommand } from './commands/diff.js';
+import { proxyCommand } from './commands/proxy.js';
 import { c } from './output.js';
 
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 
 const HELP = `${c.bold('opensyber-mcp-watch')} ${VERSION}
 MCP rug-pull detection. Records SHA-256 fingerprints per tool, per server, across days.
@@ -21,6 +22,8 @@ commands:
   watch [--interval 60s]        long-running watcher; prints drift events as they happen
   history <server> <tool>       show fingerprints over time (7 days)
   diff <server> <tool>          compare current state vs stored fingerprint
+  proxy [--server n --port 8900 --policy block]
+                                inline enforcement: block poisoned tools in real time
   --version, -v                 print version
   --help, -h                    show this help
 
@@ -70,6 +73,8 @@ async function main(): Promise<number> {
       return historyCommand(rest);
     case 'diff':
       return diffCommand(rest);
+    case 'proxy':
+      return proxyCommand(rest);
     default:
       process.stderr.write(c.alert(`Unknown command '${cmd}'.\n`));
       process.stderr.write(HELP);

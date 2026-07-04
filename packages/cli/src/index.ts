@@ -27,6 +27,14 @@ export {
 export { formatScanJson } from './report-json.js';
 export { detectShadowing, type Shadow } from './shadowing.js';
 export {
+  forward,
+  startProxy,
+  type ProxyPolicy,
+  type ProxyContext,
+  type ProxyDecision,
+  type ProxyHandle,
+} from './proxy.js';
+export {
   discover,
   candidatePaths,
   parseClientConfig,
