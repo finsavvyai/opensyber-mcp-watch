@@ -5,7 +5,7 @@ import { historyCommand } from './commands/history.js';
 import { diffCommand } from './commands/diff.js';
 import { c } from './output.js';
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 
 const HELP = `${c.bold('opensyber-mcp-watch')} ${VERSION}
 MCP rug-pull detection. Records SHA-256 fingerprints per tool, per server, across days.
@@ -15,7 +15,7 @@ usage:
 
 commands:
   init                          one-time setup; writes ~/.opensyber/mcp-watch.config.json
-  scan [--json]                 one-shot fingerprint of every configured server (--json for CI/SIEM)
+  scan [--json]                 one-shot fingerprint of tools, prompts & resources (--json for CI/SIEM)
   watch [--interval 60s]        long-running watcher; prints drift events as they happen
   history <server> <tool>       show fingerprints over time (7 days)
   diff <server> <tool>          compare current state vs stored fingerprint

@@ -12,6 +12,10 @@ const tool = {
   description: 'Echo a message back.',
   inputSchema: { type: 'object', properties: { msg: { type: 'string' } }, required: ['msg'] },
 };
+const prompt = { name: 'greet', description: 'A greeting prompt.', arguments: [{ name: 'who', required: true }] };
+const resource = { uri: 'file:///readme', name: 'readme', description: 'Project readme.', mimeType: 'text/plain' };
+
+const reply = (id, result) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id, result }) + '\n');
 
 const rl = createInterface({ input: process.stdin });
 rl.on('line', (line) => {
@@ -21,16 +25,19 @@ rl.on('line', (line) => {
   } catch {
     return;
   }
-  if (msg.method === 'initialize') {
-    process.stdout.write(
-      JSON.stringify({
-        jsonrpc: '2.0',
-        id: msg.id,
-        result: { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'fixture', version: '1.0.0' } },
-      }) + '\n',
-    );
-  } else if (msg.method === 'tools/list') {
-    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { tools: [tool] } }) + '\n');
+  switch (msg.method) {
+    case 'initialize':
+      reply(msg.id, { protocolVersion: '2025-06-18', capabilities: { tools: {}, prompts: {}, resources: {} }, serverInfo: { name: 'fixture', version: '1.0.0' } });
+      break;
+    case 'tools/list':
+      reply(msg.id, { tools: [tool] });
+      break;
+    case 'prompts/list':
+      reply(msg.id, { prompts: [prompt] });
+      break;
+    case 'resources/list':
+      reply(msg.id, { resources: [resource] });
+      break;
+    // notifications/initialized (no id) → no response, per spec
   }
-  // notifications/initialized (no id) → no response, per spec
 });

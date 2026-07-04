@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { formatScanJson } from '../src/report-json.js';
+import { detectShadowing } from '../src/shadowing.js';
 import { sendWebhookAlerts, interestingAlerts, summaryText } from '../src/webhook.js';
 import type { DriftAlert } from '../src/alert.js';
 import type { ScanResult } from '../src/watcher.js';
@@ -27,6 +28,26 @@ describe('formatScanJson', () => {
     expect(json.summary).toMatchObject({ servers: 2, suspicious: 1, unchanged: 1, errors: 1 });
     expect(json.servers[0].tools).toHaveLength(2);
     expect(json.servers[1].error).toBe('down');
+  });
+});
+
+describe('detectShadowing', () => {
+  it('flags a tool name exposed by more than one server', () => {
+    const results: ScanResult[] = [
+      { serverName: 'A', serverUrl: 'a', alerts: [alert('search', 'unchanged'), alert('only-a', 'unchanged')] },
+      { serverName: 'B', serverUrl: 'b', alerts: [alert('search', 'first-seen')] },
+    ];
+    const shadows = detectShadowing(results);
+    expect(shadows).toHaveLength(1);
+    expect(shadows[0]).toEqual({ name: 'search', servers: ['A', 'B'] });
+  });
+
+  it('ignores namespaced prompt/resource entries', () => {
+    const results: ScanResult[] = [
+      { serverName: 'A', serverUrl: 'a', alerts: [alert('prompt:greet', 'unchanged')] },
+      { serverName: 'B', serverUrl: 'b', alerts: [alert('prompt:greet', 'unchanged')] },
+    ];
+    expect(detectShadowing(results)).toHaveLength(0);
   });
 });
 

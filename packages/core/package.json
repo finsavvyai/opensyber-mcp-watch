@@ -1,6 +1,6 @@
 {
   "name": "@opensyber/mcp-watch-core",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Transport- and storage-agnostic MCP fingerprinting and drift classification. Shared by the mcp-watch CLI and the OpenSyber cloud layer.",
   "license": "MIT",
   "type": "module",

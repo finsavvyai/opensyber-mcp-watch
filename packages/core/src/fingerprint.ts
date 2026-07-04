@@ -17,15 +17,23 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(canonicalize(value));
 }
 
-export async function fingerprintTool(tool: ToolDef): Promise<string> {
-  const payload = canonicalJson({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema,
-  });
+async function sha256Hex(payload: string): Promise<string> {
   const bytes = new TextEncoder().encode(payload);
   const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+/** SHA-256 of any value's canonical JSON — used for prompts and resources. */
+export async function fingerprintValue(value: unknown): Promise<string> {
+  return sha256Hex(canonicalJson(value));
+}
+
+export async function fingerprintTool(tool: ToolDef): Promise<string> {
+  return fingerprintValue({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+  });
 }
