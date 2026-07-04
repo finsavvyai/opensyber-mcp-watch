@@ -11,3 +11,6 @@ coverage
 python/build
 python/dist
 python/*.egg-info
+
+# drift-report generated output
+drift-data

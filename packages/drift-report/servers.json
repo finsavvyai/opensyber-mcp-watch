@@ -1,0 +1,6 @@
+{
+  "_note": "Curated list of public MCP servers to watch. Replace these with real HTTP MCP endpoints you want to track. Each entry: { name, url, headers? }. The report never names a server you didn't list here.",
+  "servers": [
+    { "name": "local-demo", "url": "http://localhost:3001/mcp" }
+  ]
+}
