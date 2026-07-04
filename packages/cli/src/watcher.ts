@@ -1,6 +1,7 @@
 import type { WatchConfig, ServerConfig, CloudConfig } from './config.js';
-import { resolveCloud, serverKey } from './config.js';
+import { resolveCloud, resolveWebhooks, serverKey } from './config.js';
 import { fetchTools } from './transport.js';
+import { sendWebhookAlerts, interestingAlerts } from './webhook.js';
 import { fingerprintTool, canonicalJson, classifyDrift } from '@opensyber/mcp-watch-core';
 import type { DriftAlert } from './alert.js';
 import { formatAlertForConsole } from './alert.js';
@@ -114,11 +115,16 @@ export function watchLoop(
   let stopped = false;
   let timer: NodeJS.Timeout | undefined;
   const cloud = resolveCloud(cfg);
+  const webhooks = resolveWebhooks(cfg);
 
   const tick = async (): Promise<void> => {
     if (stopped) return;
     const results = await Promise.all(cfg.servers.map((s) => scanOnce(storage, s, cloud)));
     if (!stopped) onAlerts(results);
+    if (!stopped && webhooks.length > 0) {
+      const alerts = interestingAlerts(results.flatMap((r) => r.alerts));
+      if (alerts.length > 0) void sendWebhookAlerts(webhooks, alerts);
+    }
     if (!stopped) timer = setTimeout(tick, intervalMs);
   };
 

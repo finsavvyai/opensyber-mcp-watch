@@ -15,12 +15,16 @@ export {
   loadConfig,
   saveConfig,
   resolveCloud,
+  resolveWebhooks,
   serverKey,
   defaultConfigPath,
   type WatchConfig,
   type ServerConfig,
   type CloudConfig,
+  type WebhookConfig,
 } from './config.js';
+export { formatScanJson } from './report-json.js';
+export { sendWebhookAlerts, interestingAlerts, summaryText, type WebhookResult } from './webhook.js';
 export { scanOnce, watchLoop, type ScanResult, type WatchHandle } from './watcher.js';
 export {
   pushObservations,

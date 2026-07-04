@@ -5,7 +5,7 @@ import { historyCommand } from './commands/history.js';
 import { diffCommand } from './commands/diff.js';
 import { c } from './output.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 
 const HELP = `${c.bold('opensyber-mcp-watch')} ${VERSION}
 MCP rug-pull detection. Records SHA-256 fingerprints per tool, per server, across days.
@@ -15,7 +15,7 @@ usage:
 
 commands:
   init                          one-time setup; writes ~/.opensyber/mcp-watch.config.json
-  scan                          one-shot fingerprint of every configured server
+  scan [--json]                 one-shot fingerprint of every configured server (--json for CI/SIEM)
   watch [--interval 60s]        long-running watcher; prints drift events as they happen
   history <server> <tool>       show fingerprints over time (7 days)
   diff <server> <tool>          compare current state vs stored fingerprint
@@ -30,7 +30,11 @@ config:
   MCP_WATCH_DB                  path to SQLite db (default: ~/.opensyber/mcp-watch.db)
   MCP_WATCH_CLOUD_ENDPOINT      opt-in: push observations to this cloud ingest URL
   MCP_WATCH_CLOUD_KEY           opt-in: API key for the cloud endpoint
+  MCP_WATCH_WEBHOOK_URL         opt-in: POST drift alerts to this webhook (watch)
   NO_COLOR                      disable ANSI color when set
+
+exit codes:
+  0 clean · 2 suspicious drift detected · 64 usage · 1 error
 
 docs:    https://opensyber.cloud
 report:  https://github.com/finsavvyai/opensyber-mcp-watch/issues
@@ -55,7 +59,7 @@ async function main(): Promise<number> {
     case 'init':
       return initCommand();
     case 'scan':
-      return scanCommand();
+      return scanCommand(rest);
     case 'watch':
       return watchCommand(rest);
     case 'history':
