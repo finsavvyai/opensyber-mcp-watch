@@ -199,5 +199,16 @@ export function buildApp(store: Store): FastifyInstance {
     });
   });
 
+  // Read API for dashboards / SIEM pulls.
+  app.get('/v1/tools', async (req, reply) => {
+    return reply.send({ org: req.orgId, tools: await store.listTools(req.orgId!) });
+  });
+
+  app.get('/v1/events', async (req, reply) => {
+    const q = req.query as { limit?: string } | undefined;
+    const limit = Math.min(Math.max(Number(q?.limit ?? 50) || 50, 1), 500);
+    return reply.send({ org: req.orgId, events: await store.listDriftEvents(req.orgId!, limit) });
+  });
+
   return app;
 }

@@ -35,6 +35,25 @@ export interface AuditEntry {
   createdAt: number;
 }
 
+/** A tool the org is currently tracking (read API for dashboards). */
+export interface ToolSummary {
+  serverUrl: string;
+  toolName: string;
+  fingerprint: string;
+  updatedAt: number;
+}
+
+export interface DriftEventRecord {
+  serverUrl: string;
+  toolName: string;
+  agentExternalId: string | null;
+  verdict: ServerVerdict;
+  oldFingerprint: string | null;
+  newFingerprint: string;
+  diffSummary: string;
+  detectedAt: number;
+}
+
 export interface DriftEventInput {
   orgId: string;
   agentExternalId: string;
@@ -66,5 +85,9 @@ export interface Store {
   getAuditChain(orgId: string): Promise<AuditEntry[]>;
   /** Recompute the org's audit chain and report whether it is intact. */
   verifyAudit(orgId: string): Promise<ChainVerification>;
+  /** Read API: current tools tracked by the org. */
+  listTools(orgId: string): Promise<ToolSummary[]>;
+  /** Read API: recent drift/fleet events, newest first. */
+  listDriftEvents(orgId: string, limit?: number): Promise<DriftEventRecord[]>;
   close(): Promise<void>;
 }

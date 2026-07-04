@@ -1,5 +1,14 @@
 import pg from 'pg';
-import type { Store, LastSeen, ObservationInput, DriftEventInput, AuditEntry } from './types.js';
+import type {
+  Store,
+  LastSeen,
+  ObservationInput,
+  DriftEventInput,
+  AuditEntry,
+  ToolSummary,
+  DriftEventRecord,
+} from './types.js';
+import type { ServerVerdict } from './types.js';
 import type { FleetEntry } from '../fleet.js';
 import { chainHmac, deriveOrgKey, verifyChain, GENESIS_HMAC, type ChainVerification } from '../audit.js';
 
@@ -168,6 +177,59 @@ export class PgStore implements Store {
   async verifyAudit(orgId: string): Promise<ChainVerification> {
     const key = deriveOrgKey(this.auditSecret, orgId);
     return verifyChain(await this.getAuditChain(orgId), key);
+  }
+
+  async listTools(orgId: string): Promise<ToolSummary[]> {
+    const res = await this.pool.query<{
+      server_url: string;
+      tool_name: string;
+      fingerprint: string;
+      updated_at: string;
+    }>(
+      `SELECT server_url, tool_name, fingerprint,
+              (EXTRACT(EPOCH FROM updated_at) * 1000)::bigint AS updated_at
+         FROM current_fingerprints WHERE org_id = $1
+        ORDER BY server_url, tool_name`,
+      [orgId],
+    );
+    return res.rows.map((r) => ({
+      serverUrl: r.server_url,
+      toolName: r.tool_name,
+      fingerprint: r.fingerprint,
+      updatedAt: Number(r.updated_at),
+    }));
+  }
+
+  async listDriftEvents(orgId: string, limit = 50): Promise<DriftEventRecord[]> {
+    const res = await this.pool.query<{
+      server_url: string;
+      tool_name: string;
+      agent: string | null;
+      verdict: string;
+      old_fp: string | null;
+      new_fp: string;
+      diff_summary: string | null;
+      detected_at: string;
+    }>(
+      `SELECT d.server_url, d.tool_name, a.external_id AS agent, d.verdict,
+              d.old_fp, d.new_fp, d.diff_summary,
+              (EXTRACT(EPOCH FROM d.detected_at) * 1000)::bigint AS detected_at
+         FROM drift_events d
+         LEFT JOIN agents a ON a.id = d.agent_id
+        WHERE d.org_id = $1
+        ORDER BY d.detected_at DESC LIMIT $2`,
+      [orgId, limit],
+    );
+    return res.rows.map((r) => ({
+      serverUrl: r.server_url,
+      toolName: r.tool_name,
+      agentExternalId: r.agent,
+      verdict: r.verdict as ServerVerdict,
+      oldFingerprint: r.old_fp,
+      newFingerprint: r.new_fp,
+      diffSummary: r.diff_summary ?? '',
+      detectedAt: Number(r.detected_at),
+    }));
   }
 
   async close(): Promise<void> {
