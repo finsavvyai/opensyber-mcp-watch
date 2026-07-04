@@ -1,0 +1,17 @@
+{
+  "_disclaimer": "UNVERIFIED CANDIDATES to VET before use. These are public remote MCP endpoints gathered from public registries (registry.modelcontextprotocol.io, awesome-remote-mcp-servers, mcp.so). Before watching any of them: (1) confirm the endpoint is live and that watching it is consistent with the provider's terms; (2) run `snapshot` once and keep only the ones that return tools (others are recorded as unreachable); (3) if you find a genuine `suspicious` change, DISCLOSE to the maintainer before publishing their name. The report only ever names servers you keep in this list.",
+  "_auth_note": "These are the no-auth endpoints (best for a watch harness — no credentials). Auth-required servers (Zapier, Linear, Sentry, Asana, GitHub, Atlassian, etc.) can be added with a `headers` field carrying a bearer token you own.",
+  "_transport_note": "The harness speaks MCP Streamable HTTP (initialize handshake + tools/list) and falls back to a plain tools/list. Some servers require session handshakes or SSE the harness may not fully negotiate; those simply show up as unreachable — no harm.",
+  "servers": [
+    { "name": "deepwiki", "url": "https://mcp.deepwiki.com/mcp" },
+    { "name": "semgrep", "url": "https://mcp.semgrep.ai/mcp" },
+    { "name": "roundtable", "url": "https://mcp.roundtable.now/mcp" },
+    { "name": "402bot", "url": "https://api.402.bot/mcp" },
+    { "name": "bgpt", "url": "https://mcp.bgpt.pro/mcp" },
+    { "name": "chainflip-broker", "url": "https://chainflip-broker.io/mcp" },
+    { "name": "wzrd", "url": "https://app.twzrd.xyz/api/mcp" },
+    { "name": "spacemolt", "url": "https://game.spacemolt.com/mcp" },
+    { "name": "usefulai", "url": "https://api.usefulai.fun/mcp" },
+    { "name": "crashstory", "url": "https://crashstory-mcp-production.up.railway.app/mcp" }
+  ]
+}

@@ -15,7 +15,9 @@ engine the product ships, so the evidence is the product.
 ```bash
 pnpm --filter @opensyber/mcp-watch-drift-report build
 
-# 1. Curate the servers to watch
+# 1. Curate the servers to watch.
+#    servers.candidates.json holds vet-ready public endpoints — validate each,
+#    then copy the ones that work into servers.json.
 $EDITOR packages/drift-report/servers.json
 
 # 2. Take a snapshot — run on a schedule (cron/systemd) for ~7 days
