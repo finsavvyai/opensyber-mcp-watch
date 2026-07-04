@@ -25,6 +25,8 @@ commands:
 config:
   MCP_WATCH_CONFIG              path to config file (default: ~/.opensyber/mcp-watch.config.json)
   MCP_WATCH_DB                  path to SQLite db (default: ~/.opensyber/mcp-watch.db)
+  MCP_WATCH_CLOUD_ENDPOINT      opt-in: push observations to this cloud ingest URL
+  MCP_WATCH_CLOUD_KEY           opt-in: API key for the cloud endpoint
   NO_COLOR                      disable ANSI color when set
 
 docs:    https://opensyber.cloud
