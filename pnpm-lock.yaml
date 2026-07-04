@@ -39,6 +39,12 @@ importers:
 
   packages/core: {}
 
+  packages/drift-report:
+    devDependencies:
+      '@opensyber/mcp-watch-core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/server:
     dependencies:
       fastify:
