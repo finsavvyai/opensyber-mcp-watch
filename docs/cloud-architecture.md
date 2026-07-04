@@ -1,8 +1,9 @@
 # OpenSyber mcp-watch — Cloud Layer Architecture
 
-> Status: **design + Phase 0 landed.** This document specifies how `mcp-watch`
+> Status: **design + Phases 0–1 landed.** This document specifies how `mcp-watch`
 > grows from a single-machine CLI into a hosted, multi-tenant security layer.
-> Phase 0 (the monorepo + shared `core`) is implemented; Phases 1–5 are the plan.
+> Phase 0 (monorepo + shared `core`) and Phase 1 (Fastify ingest API + Store
+> abstraction + Postgres schema) are implemented; Phases 2–5 are the plan.
 
 ## 1. Why a cloud layer
 
@@ -185,11 +186,19 @@ POST /v1/ingest
 ```
 
 Notes:
-- The agent sends the `fingerprint` it computed locally **and** the raw fields,
-  so the server can (a) verify the hash and (b) re-classify with the canonical
-  fields — defense against a tampered or buggy agent.
+- Auth is an `onRequest` hook (**auth-before-parse**): an unauthenticated call
+  gets `401` before its body is read, never a `415`.
+- The server **recomputes** the fingerprint from the raw fields via
+  `core.fingerprintTool()` and uses *that* as authoritative — the agent's hash is
+  never trusted. A disagreement is returned as `fingerprintMismatch: true`
+  (tampered or buggy agent).
 - Batched: one request carries all tools from one server scan.
 - Idempotent on `(org, agent, server, tool, fingerprint, observed_at)`.
+
+Implemented in `packages/server` behind a `Store` interface
+(`resolveOrg` / `getLastSeen` / `saveObservation` / `saveDriftEvent`) with two
+backends: `MemoryStore` (tests + `DATABASE_URL`-less dev) and `PgStore`
+(Postgres, schema in `migrations/0001_init.sql`).
 
 ## 7. Fleet baselines & cross-machine sync (Phase 3)
 
@@ -228,8 +237,8 @@ the rules in another language.
 
 | Concern        | Choice                          | Rationale                                  |
 |----------------|---------------------------------|--------------------------------------------|
-| API framework  | Fastify (or Hono)               | Fast, typed, small; swap-in for the stub.  |
-| DB             | Postgres + Drizzle              | Typed schema/migrations, partitioning.     |
+| API framework  | **Fastify** (implemented)       | Fast, typed, small; `inject()` tests need no port. |
+| DB             | Postgres via `pg` + raw SQL     | Explicit migration (`0001_init.sql`); Drizzle can layer on later. |
 | Deploy         | Container or serverless         | Stateless API; DB is the only state.       |
 | Auth (app)     | Org/team model, hashed API keys | Keys for agents; sessions for the dashboard.|
 | Dashboard      | (Phase 5) React/Next            | Reuses the same JSON the API emits.         |
@@ -239,7 +248,7 @@ the rules in another language.
 | Phase | Scope                                                                 | Status      |
 |-------|-----------------------------------------------------------------------|-------------|
 | **0** | Monorepo; extract `core`; CLI + server bundle it; CI green            | **Done**    |
-| **1** | Fastify ingest API + Postgres schema + hashed API keys                | Next        |
+| **1** | Fastify ingest API + `Store` (Memory+Pg) + schema + hashed API keys   | **Done**    |
 | **2** | CLI remote sink: `--cloud` config pushes observations; SQLite = cache | Planned     |
 | **3** | Fleet aggregator: consensus fingerprints + outlier (`fleet-divergence`)| Planned    |
 | **4** | Append-only HMAC audit log + signed export pack                        | Planned     |
