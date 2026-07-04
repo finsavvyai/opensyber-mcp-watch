@@ -22,6 +22,9 @@ commands:
   --version, -v                 print version
   --help, -h                    show this help
 
+servers (in config file): each has a "name" plus either
+  "url" (http transport)  or  "command" + "args" (stdio transport).
+
 config:
   MCP_WATCH_CONFIG              path to config file (default: ~/.opensyber/mcp-watch.config.json)
   MCP_WATCH_DB                  path to SQLite db (default: ~/.opensyber/mcp-watch.db)

@@ -1,6 +1,6 @@
 import type { WatchConfig, ServerConfig, CloudConfig } from './config.js';
-import { resolveCloud } from './config.js';
-import { fetchToolsList } from './mcp-client.js';
+import { resolveCloud, serverKey } from './config.js';
+import { fetchTools } from './transport.js';
 import { fingerprintTool, canonicalJson, classifyDrift } from '@opensyber/mcp-watch-core';
 import type { DriftAlert } from './alert.js';
 import { formatAlertForConsole } from './alert.js';
@@ -23,8 +23,9 @@ export async function scanOnce(
 ): Promise<ScanResult> {
   const alerts: DriftAlert[] = [];
   const observations: CloudObservation[] = [];
+  const key = serverKey(server);
   try {
-    const tools = await fetchToolsList(server.url, { headers: server.headers });
+    const tools = await fetchTools(server);
     const now = Date.now();
     for (const tool of tools) {
       const fp = await fingerprintTool(tool);
@@ -39,7 +40,7 @@ export async function scanOnce(
         description: tool.description,
         inputSchema: tool.inputSchema,
       });
-      const prior = storage.getCurrent(server.url, tool.name);
+      const prior = storage.getCurrent(key, tool.name);
       const drift = classifyDrift({
         oldFingerprint: prior?.fingerprint ?? null,
         newFingerprint: fp,
@@ -50,7 +51,7 @@ export async function scanOnce(
       });
       const alert: DriftAlert = {
         serverName: server.name,
-        serverUrl: server.url,
+        serverUrl: key,
         toolName: tool.name,
         verdict: drift.verdict,
         reason: drift.reason,
@@ -62,7 +63,7 @@ export async function scanOnce(
       alerts.push(alert);
 
       storage.upsertCurrent({
-        serverUrl: server.url,
+        serverUrl: key,
         toolName: tool.name,
         fingerprint: fp,
         description: tool.description,
@@ -71,7 +72,7 @@ export async function scanOnce(
         lastSeen: now,
       });
       storage.appendHistory({
-        serverUrl: server.url,
+        serverUrl: key,
         toolName: tool.name,
         fingerprint: fp,
         canonicalPayload,
@@ -79,7 +80,7 @@ export async function scanOnce(
       });
       if (drift.verdict === 'suspicious-injection' || drift.verdict === 'version-bump') {
         storage.appendDriftEvent({
-          serverUrl: server.url,
+          serverUrl: key,
           toolName: tool.name,
           oldFingerprint: prior?.fingerprint ?? '',
           newFingerprint: fp,
@@ -93,10 +94,10 @@ export async function scanOnce(
     if (cloud && observations.length > 0) {
       cloudPush = await pushObservations(cloud, server, observations, { observedAt: now });
     }
-    return { serverName: server.name, serverUrl: server.url, alerts, ...(cloudPush ? { cloudPush } : {}) };
+    return { serverName: server.name, serverUrl: key, alerts, ...(cloudPush ? { cloudPush } : {}) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { serverName: server.name, serverUrl: server.url, alerts, error: message };
+    return { serverName: server.name, serverUrl: key, alerts, error: message };
   }
 }
 

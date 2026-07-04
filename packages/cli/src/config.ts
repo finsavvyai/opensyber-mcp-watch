@@ -9,9 +9,21 @@ export type AlertCondition =
   | 'tool_removed';
 
 export interface ServerConfig {
-  url: string;
   name: string;
+  /** HTTP transport: the MCP endpoint URL. */
+  url?: string;
   headers?: Record<string, string>;
+  /** stdio transport: the command to spawn (mutually exclusive with url). */
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+}
+
+/** Stable identity for a server across transports (used as the storage key). */
+export function serverKey(s: ServerConfig): string {
+  if (s.url) return s.url;
+  if (s.command) return `stdio:${[s.command, ...(s.args ?? [])].join(' ')}`;
+  return `server:${s.name}`;
 }
 
 /** Opt-in push to the OpenSyber cloud layer. Off unless explicitly enabled. */
@@ -54,11 +66,16 @@ export function loadConfig(path: string = defaultConfigPath()): WatchConfig {
     throw new Error(`Config must include a non-empty 'servers' array.`);
   }
   for (const s of cfg.servers) {
-    if (typeof s.url !== 'string' || !/^https?:\/\//.test(s.url)) {
-      throw new Error(`Server config has invalid url: ${JSON.stringify(s)}`);
-    }
     if (typeof s.name !== 'string' || s.name.length === 0) {
       throw new Error(`Server config missing 'name': ${JSON.stringify(s)}`);
+    }
+    const hasCommand = typeof s.command === 'string' && s.command.length > 0;
+    const hasUrl = typeof s.url === 'string' && s.url.length > 0;
+    if (!hasCommand && !hasUrl) {
+      throw new Error(`Server '${s.name}' needs either a 'url' (http) or a 'command' (stdio).`);
+    }
+    if (hasUrl && !/^https?:\/\//.test(s.url as string)) {
+      throw new Error(`Server '${s.name}' has invalid url: ${JSON.stringify(s.url)}`);
     }
   }
   let cloud: CloudConfig | undefined;

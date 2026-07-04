@@ -1,6 +1,6 @@
-import { loadConfig } from '../config.js';
+import { loadConfig, serverKey } from '../config.js';
 import { Storage } from '../storage.js';
-import { fetchToolsList } from '../mcp-client.js';
+import { fetchTools } from '../transport.js';
 import { fingerprintTool, canonicalJson, classifyDrift } from '@opensyber/mcp-watch-core';
 import { formatAlertForConsole } from '../alert.js';
 import { c } from '../output.js';
@@ -17,14 +17,15 @@ export async function diffCommand(args: string[]): Promise<number> {
     process.stderr.write(c.alert(`Unknown server '${serverName}'.\n`));
     return 1;
   }
+  const key = serverKey(server);
   const storage = new Storage();
   try {
-    const stored = storage.getCurrent(server.url, toolName);
+    const stored = storage.getCurrent(key, toolName);
     if (!stored) {
       process.stderr.write(c.alert(`No stored fingerprint for ${serverName}/${toolName}. Run 'scan' first.\n`));
       return 1;
     }
-    const tools = await fetchToolsList(server.url, { headers: server.headers });
+    const tools = await fetchTools(server);
     const current = tools.find((t) => t.name === toolName);
     if (!current) {
       process.stderr.write(c.alert(`Tool '${toolName}' not present on ${serverName} right now.\n`));
@@ -41,7 +42,7 @@ export async function diffCommand(args: string[]): Promise<number> {
     });
     const alert = {
       serverName: server.name,
-      serverUrl: server.url,
+      serverUrl: key,
       toolName,
       verdict: drift.verdict,
       reason: drift.reason,

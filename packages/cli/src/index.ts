@@ -8,11 +8,14 @@ export {
   type DriftVerdict,
 } from '@opensyber/mcp-watch-core';
 export { fetchToolsList, type FetchToolsOpts } from './mcp-client.js';
+export { fetchToolsListStdio, type StdioOpts } from './stdio-client.js';
+export { fetchTools, type TransportOpts } from './transport.js';
 export { Storage, defaultDbPath } from './storage.js';
 export {
   loadConfig,
   saveConfig,
   resolveCloud,
+  serverKey,
   defaultConfigPath,
   type WatchConfig,
   type ServerConfig,
