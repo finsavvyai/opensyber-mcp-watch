@@ -14,10 +14,18 @@ export interface ServerConfig {
   headers?: Record<string, string>;
 }
 
+/** Opt-in push to the OpenSyber cloud layer. Off unless explicitly enabled. */
+export interface CloudConfig {
+  endpoint: string;
+  api_key: string;
+  enabled: boolean;
+}
+
 export interface WatchConfig {
   servers: ServerConfig[];
   interval_ms: number;
   alert_on: AlertCondition[];
+  cloud?: CloudConfig;
 }
 
 export const DEFAULT_INTERVAL_MS = 300_000;
@@ -53,6 +61,17 @@ export function loadConfig(path: string = defaultConfigPath()): WatchConfig {
       throw new Error(`Server config missing 'name': ${JSON.stringify(s)}`);
     }
   }
+  let cloud: CloudConfig | undefined;
+  if (cfg.cloud !== undefined) {
+    const raw = cfg.cloud as Partial<CloudConfig>;
+    if (typeof raw.endpoint !== 'string' || !/^https?:\/\//.test(raw.endpoint)) {
+      throw new Error(`Cloud config has invalid endpoint: ${JSON.stringify(raw.endpoint)}`);
+    }
+    if (typeof raw.api_key !== 'string' || raw.api_key.length === 0) {
+      throw new Error(`Cloud config missing 'api_key'.`);
+    }
+    cloud = { endpoint: raw.endpoint, api_key: raw.api_key, enabled: raw.enabled === true };
+  }
   return {
     servers: cfg.servers,
     interval_ms: typeof cfg.interval_ms === 'number' ? cfg.interval_ms : DEFAULT_INTERVAL_MS,
@@ -60,7 +79,27 @@ export function loadConfig(path: string = defaultConfigPath()): WatchConfig {
       Array.isArray(cfg.alert_on) && cfg.alert_on.length > 0
         ? (cfg.alert_on as AlertCondition[])
         : ['description_change', 'schema_change', 'tool_added', 'tool_removed'],
+    ...(cloud ? { cloud } : {}),
   };
+}
+
+/**
+ * Resolve the effective cloud target, merging env overrides over config.
+ * Returns null when cloud push is not enabled (the default). Env vars
+ * MCP_WATCH_CLOUD_ENDPOINT + MCP_WATCH_CLOUD_KEY are an explicit opt-in.
+ */
+export function resolveCloud(
+  cfg: WatchConfig,
+  env: NodeJS.ProcessEnv = process.env,
+): CloudConfig | null {
+  const endpoint = env.MCP_WATCH_CLOUD_ENDPOINT ?? cfg.cloud?.endpoint;
+  const apiKey = env.MCP_WATCH_CLOUD_KEY ?? cfg.cloud?.api_key;
+  if (!endpoint || !apiKey) return null;
+  if (!/^https?:\/\//.test(endpoint)) {
+    throw new Error(`Cloud endpoint must be http(s): ${endpoint}`);
+  }
+  const enabled = env.MCP_WATCH_CLOUD_ENDPOINT !== undefined ? true : cfg.cloud?.enabled === true;
+  return enabled ? { endpoint, api_key: apiKey, enabled: true } : null;
 }
 
 export function saveConfig(cfg: WatchConfig, path: string = defaultConfigPath()): void {

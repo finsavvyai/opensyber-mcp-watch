@@ -1,4 +1,9 @@
 import type { DriftVerdict } from '@opensyber/mcp-watch-core';
+import type { FleetEntry } from '../fleet.js';
+import type { ChainVerification } from '../audit.js';
+
+/** Cross-agent divergence is a server-only verdict on top of core's temporal ones. */
+export type ServerVerdict = DriftVerdict | 'fleet-divergence';
 
 /** The last fingerprint an org has seen for a given (server, tool). */
 export interface LastSeen {
@@ -22,12 +27,39 @@ export interface ObservationInput {
   observedAt: number;
 }
 
+export interface AuditEntry {
+  seq: number;
+  prevHmac: string;
+  payload: unknown;
+  hmac: string;
+  createdAt: number;
+}
+
+/** A tool the org is currently tracking (read API for dashboards). */
+export interface ToolSummary {
+  serverUrl: string;
+  toolName: string;
+  fingerprint: string;
+  updatedAt: number;
+}
+
+export interface DriftEventRecord {
+  serverUrl: string;
+  toolName: string;
+  agentExternalId: string | null;
+  verdict: ServerVerdict;
+  oldFingerprint: string | null;
+  newFingerprint: string;
+  diffSummary: string;
+  detectedAt: number;
+}
+
 export interface DriftEventInput {
   orgId: string;
   agentExternalId: string;
   serverUrl: string;
   toolName: string;
-  verdict: DriftVerdict;
+  verdict: ServerVerdict;
   oldFingerprint: string | null;
   newFingerprint: string;
   diffSummary: string;
@@ -45,6 +77,17 @@ export interface Store {
   getLastSeen(orgId: string, serverUrl: string, toolName: string): Promise<LastSeen | null>;
   /** Append to history and update the org's current fingerprint for this tool. */
   saveObservation(input: ObservationInput): Promise<void>;
+  /** Latest fingerprint per agent for a (server, tool) — powers fleet analysis. */
+  getFleetFingerprints(orgId: string, serverUrl: string, toolName: string): Promise<FleetEntry[]>;
   saveDriftEvent(input: DriftEventInput): Promise<void>;
+  /** Append a hash-chained audit entry for this org and return it. */
+  appendAudit(orgId: string, payload: unknown, at: number): Promise<AuditEntry>;
+  getAuditChain(orgId: string): Promise<AuditEntry[]>;
+  /** Recompute the org's audit chain and report whether it is intact. */
+  verifyAudit(orgId: string): Promise<ChainVerification>;
+  /** Read API: current tools tracked by the org. */
+  listTools(orgId: string): Promise<ToolSummary[]>;
+  /** Read API: recent drift/fleet events, newest first. */
+  listDriftEvents(orgId: string, limit?: number): Promise<DriftEventRecord[]>;
   close(): Promise<void>;
 }

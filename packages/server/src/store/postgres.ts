@@ -1,5 +1,16 @@
 import pg from 'pg';
-import type { Store, LastSeen, ObservationInput, DriftEventInput } from './types.js';
+import type {
+  Store,
+  LastSeen,
+  ObservationInput,
+  DriftEventInput,
+  AuditEntry,
+  ToolSummary,
+  DriftEventRecord,
+} from './types.js';
+import type { ServerVerdict } from './types.js';
+import type { FleetEntry } from '../fleet.js';
+import { chainHmac, deriveOrgKey, verifyChain, GENESIS_HMAC, type ChainVerification } from '../audit.js';
 
 const { Pool } = pg;
 
@@ -11,8 +22,11 @@ const { Pool } = pg;
 export class PgStore implements Store {
   private pool: pg.Pool;
 
-  constructor(connectionString: string) {
+  private readonly auditSecret: string;
+
+  constructor(connectionString: string, auditSecret = 'dev-audit-secret') {
     this.pool = new Pool({ connectionString });
+    this.auditSecret = auditSecret;
   }
 
   async resolveOrg(apiKeyHash: string): Promise<string | null> {
@@ -32,6 +46,20 @@ export class PgStore implements Store {
     );
     const row = res.rows[0];
     return row ? { fingerprint: row.fingerprint, description: row.description, inputSchema: row.input_schema } : null;
+  }
+
+  async getFleetFingerprints(orgId: string, serverUrl: string, toolName: string): Promise<FleetEntry[]> {
+    // Latest observation per agent for this (org, server, tool).
+    const res = await this.pool.query<{ agent: string; fingerprint: string }>(
+      `SELECT DISTINCT ON (a.external_id)
+              a.external_id AS agent, o.fingerprint
+         FROM observations o
+         JOIN agents a ON a.id = o.agent_id
+        WHERE o.org_id = $1 AND o.server_url = $2 AND o.tool_name = $3
+        ORDER BY a.external_id, o.observed_at DESC`,
+      [orgId, serverUrl, toolName],
+    );
+    return res.rows.map((r) => ({ agentExternalId: r.agent, fingerprint: r.fingerprint }));
   }
 
   async saveObservation(input: ObservationInput): Promise<void> {
@@ -93,6 +121,115 @@ export class PgStore implements Store {
         input.detectedAt,
       ],
     );
+  }
+
+  async appendAudit(orgId: string, payload: unknown, at: number): Promise<AuditEntry> {
+    const key = deriveOrgKey(this.auditSecret, orgId);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Serialize appends per org so the hash chain has no races.
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [orgId]);
+      const last = await client.query<{ hmac: string }>(
+        `SELECT hmac FROM audit_log WHERE org_id = $1 ORDER BY seq DESC LIMIT 1`,
+        [orgId],
+      );
+      const prevHmac = last.rows[0]?.hmac ?? GENESIS_HMAC;
+      const hmac = chainHmac(prevHmac, payload, key);
+      const inserted = await client.query<{ seq: string }>(
+        `INSERT INTO audit_log (org_id, prev_hmac, payload, hmac, created_at)
+         VALUES ($1, $2, $3::jsonb, $4, to_timestamp($5 / 1000.0))
+         RETURNING seq`,
+        [orgId, prevHmac, JSON.stringify(payload), hmac, at],
+      );
+      await client.query('COMMIT');
+      return { seq: Number(inserted.rows[0]!.seq), prevHmac, payload, hmac, createdAt: at };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getAuditChain(orgId: string): Promise<AuditEntry[]> {
+    const res = await this.pool.query<{
+      seq: string;
+      prev_hmac: string;
+      payload: unknown;
+      hmac: string;
+      created_at: string;
+    }>(
+      `SELECT seq, prev_hmac, payload, hmac,
+              (EXTRACT(EPOCH FROM created_at) * 1000)::bigint AS created_at
+         FROM audit_log WHERE org_id = $1 ORDER BY seq ASC`,
+      [orgId],
+    );
+    return res.rows.map((r) => ({
+      seq: Number(r.seq),
+      prevHmac: r.prev_hmac,
+      payload: r.payload,
+      hmac: r.hmac,
+      createdAt: Number(r.created_at),
+    }));
+  }
+
+  async verifyAudit(orgId: string): Promise<ChainVerification> {
+    const key = deriveOrgKey(this.auditSecret, orgId);
+    return verifyChain(await this.getAuditChain(orgId), key);
+  }
+
+  async listTools(orgId: string): Promise<ToolSummary[]> {
+    const res = await this.pool.query<{
+      server_url: string;
+      tool_name: string;
+      fingerprint: string;
+      updated_at: string;
+    }>(
+      `SELECT server_url, tool_name, fingerprint,
+              (EXTRACT(EPOCH FROM updated_at) * 1000)::bigint AS updated_at
+         FROM current_fingerprints WHERE org_id = $1
+        ORDER BY server_url, tool_name`,
+      [orgId],
+    );
+    return res.rows.map((r) => ({
+      serverUrl: r.server_url,
+      toolName: r.tool_name,
+      fingerprint: r.fingerprint,
+      updatedAt: Number(r.updated_at),
+    }));
+  }
+
+  async listDriftEvents(orgId: string, limit = 50): Promise<DriftEventRecord[]> {
+    const res = await this.pool.query<{
+      server_url: string;
+      tool_name: string;
+      agent: string | null;
+      verdict: string;
+      old_fp: string | null;
+      new_fp: string;
+      diff_summary: string | null;
+      detected_at: string;
+    }>(
+      `SELECT d.server_url, d.tool_name, a.external_id AS agent, d.verdict,
+              d.old_fp, d.new_fp, d.diff_summary,
+              (EXTRACT(EPOCH FROM d.detected_at) * 1000)::bigint AS detected_at
+         FROM drift_events d
+         LEFT JOIN agents a ON a.id = d.agent_id
+        WHERE d.org_id = $1
+        ORDER BY d.detected_at DESC LIMIT $2`,
+      [orgId, limit],
+    );
+    return res.rows.map((r) => ({
+      serverUrl: r.server_url,
+      toolName: r.tool_name,
+      agentExternalId: r.agent,
+      verdict: r.verdict as ServerVerdict,
+      oldFingerprint: r.old_fp,
+      newFingerprint: r.new_fp,
+      diffSummary: r.diff_summary ?? '',
+      detectedAt: Number(r.detected_at),
+    }));
   }
 
   async close(): Promise<void> {

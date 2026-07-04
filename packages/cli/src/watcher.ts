@@ -1,8 +1,10 @@
-import type { WatchConfig, ServerConfig } from './config.js';
+import type { WatchConfig, ServerConfig, CloudConfig } from './config.js';
+import { resolveCloud } from './config.js';
 import { fetchToolsList } from './mcp-client.js';
 import { fingerprintTool, canonicalJson, classifyDrift } from '@opensyber/mcp-watch-core';
 import type { DriftAlert } from './alert.js';
 import { formatAlertForConsole } from './alert.js';
+import { pushObservations, type CloudObservation, type CloudPushResult } from './cloud-client.js';
 import { Storage } from './storage.js';
 import { c, timestamp } from './output.js';
 
@@ -11,10 +13,16 @@ export interface ScanResult {
   serverUrl: string;
   alerts: DriftAlert[];
   error?: string;
+  cloudPush?: CloudPushResult;
 }
 
-export async function scanOnce(storage: Storage, server: ServerConfig): Promise<ScanResult> {
+export async function scanOnce(
+  storage: Storage,
+  server: ServerConfig,
+  cloud: CloudConfig | null = null,
+): Promise<ScanResult> {
   const alerts: DriftAlert[] = [];
+  const observations: CloudObservation[] = [];
   try {
     const tools = await fetchToolsList(server.url, { headers: server.headers });
     const now = Date.now();
@@ -22,6 +30,12 @@ export async function scanOnce(storage: Storage, server: ServerConfig): Promise<
       const fp = await fingerprintTool(tool);
       const canonicalPayload = canonicalJson({
         name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      });
+      observations.push({
+        toolName: tool.name,
+        fingerprint: fp,
         description: tool.description,
         inputSchema: tool.inputSchema,
       });
@@ -75,7 +89,11 @@ export async function scanOnce(storage: Storage, server: ServerConfig): Promise<
       }
     }
     storage.prune(now);
-    return { serverName: server.name, serverUrl: server.url, alerts };
+    let cloudPush: CloudPushResult | undefined;
+    if (cloud && observations.length > 0) {
+      cloudPush = await pushObservations(cloud, server, observations, { observedAt: now });
+    }
+    return { serverName: server.name, serverUrl: server.url, alerts, ...(cloudPush ? { cloudPush } : {}) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { serverName: server.name, serverUrl: server.url, alerts, error: message };
@@ -94,10 +112,11 @@ export function watchLoop(
 ): WatchHandle {
   let stopped = false;
   let timer: NodeJS.Timeout | undefined;
+  const cloud = resolveCloud(cfg);
 
   const tick = async (): Promise<void> => {
     if (stopped) return;
-    const results = await Promise.all(cfg.servers.map((s) => scanOnce(storage, s)));
+    const results = await Promise.all(cfg.servers.map((s) => scanOnce(storage, s, cloud)));
     if (!stopped) onAlerts(results);
     if (!stopped) timer = setTimeout(tick, intervalMs);
   };
@@ -124,7 +143,7 @@ function defaultOnAlerts(results: ScanResult[]): void {
     );
     if (interesting.length === 0) {
       process.stdout.write(
-        `${c.ok('[ok]')} ${c.dim(ts)} ${r.serverName} — ${r.alerts.length} tools unchanged\n`,
+        `${c.ok('[ok]')} ${c.dim(ts)} ${r.serverName} — ${r.alerts.length} tools unchanged${cloudSuffix(r)}\n`,
       );
       continue;
     }
@@ -132,4 +151,11 @@ function defaultOnAlerts(results: ScanResult[]): void {
       process.stdout.write(formatAlertForConsole(a) + '\n\n');
     }
   }
+}
+
+function cloudSuffix(r: ScanResult): string {
+  if (!r.cloudPush) return '';
+  return r.cloudPush.ok
+    ? c.dim(` · cloud ✓${r.cloudPush.suspicious ? ` (${r.cloudPush.suspicious} flagged)` : ''}`)
+    : c.warn(` · cloud ✗ ${r.cloudPush.error ?? ''}`);
 }

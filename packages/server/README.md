@@ -4,9 +4,11 @@ The **OpenSyber cloud layer** — a multi-tenant service that ingests MCP tool
 fingerprints from many agents/machines and scores drift with the same
 `@opensyber/mcp-watch-core` rules the CLI uses.
 
-> **Status: Phase 1.** Fastify HTTP API + a pluggable `Store` (in-memory for
-> dev/tests, Postgres for production) + hashed API keys. Fleet baselines and the
-> signed audit log are Phases 3–4. Full design: [`docs/cloud-architecture.md`](../../docs/cloud-architecture.md).
+> **Status: backend complete (Phases 1–5).** Fastify HTTP API + a pluggable
+> `Store` (in-memory for dev/tests, Postgres for production), hashed API keys,
+> cross-machine fleet baselines, a tamper-evident HMAC audit log, and a read API.
+> The remaining work is the dashboard UI + billing. Full design:
+> [`docs/cloud-architecture.md`](../../docs/cloud-architecture.md).
 
 ## Run
 
@@ -33,16 +35,23 @@ curl -X POST localhost:8787/v1/ingest \
 
 ## Endpoints
 
-| Method | Path         | Auth              | Purpose                                       |
-|--------|--------------|-------------------|-----------------------------------------------|
-| GET    | `/healthz`   | none              | Liveness probe.                               |
-| POST   | `/v1/ingest` | `Bearer <key>`    | Accept a batch of tool observations.          |
+| Method | Path                | Auth           | Purpose                                             |
+|--------|---------------------|----------------|-----------------------------------------------------|
+| GET    | `/healthz`          | none           | Liveness probe.                                     |
+| POST   | `/v1/ingest`        | `Bearer <key>` | Batch of tool observations → temporal + fleet verdicts. |
+| GET    | `/v1/tools`         | `Bearer <key>` | Current tools the org is tracking.                  |
+| GET    | `/v1/events`        | `Bearer <key>` | Recent drift + fleet events (`?limit=`).            |
+| GET    | `/v1/audit/export`  | `Bearer <key>` | Hash-chained audit record + integrity check.        |
 
-- **Auth-before-parse:** the API key is checked in an `onRequest` hook, so an
-  unauthenticated request is `401`ed before its body is read.
+- **Auth-before-parse:** the API key is checked in an `onRequest` hook for every
+  `/v1/*` route, so an unauthenticated request is `401`ed before its body is read.
 - **Server-side fingerprints:** the server recomputes each fingerprint from the
   raw fields and treats *that* as authoritative; the agent's claimed hash is
   compared and any disagreement returned as `fingerprintMismatch: true`.
+- **Fleet baselines:** each ingest checks the tool's fingerprint against the org's
+  fleet consensus; a disagreeing agent yields `fleetDivergence` + a `fleet-divergence` event.
+- **Audit log:** every detection appends a per-org HMAC-chained entry;
+  `MCP_WATCH_AUDIT_SECRET` sets the server secret.
 
 ## Architecture
 
