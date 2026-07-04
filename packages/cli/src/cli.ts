@@ -5,7 +5,7 @@ import { historyCommand } from './commands/history.js';
 import { diffCommand } from './commands/diff.js';
 import { c } from './output.js';
 
-const VERSION = '0.1.1';
+const VERSION = '0.2.0';
 
 const HELP = `${c.bold('opensyber-mcp-watch')} ${VERSION}
 MCP rug-pull detection. Records SHA-256 fingerprints per tool, per server, across days.

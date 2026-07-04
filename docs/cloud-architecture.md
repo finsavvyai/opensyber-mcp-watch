@@ -1,9 +1,11 @@
 # OpenSyber mcp-watch — Cloud Layer Architecture
 
-> Status: **design + Phases 0–1 landed.** This document specifies how `mcp-watch`
-> grows from a single-machine CLI into a hosted, multi-tenant security layer.
-> Phase 0 (monorepo + shared `core`) and Phase 1 (Fastify ingest API + Store
-> abstraction + Postgres schema) are implemented; Phases 2–5 are the plan.
+> Status: **Phases 0–4 complete; Phase 5 backend complete (UI/billing remain).**
+> `mcp-watch` has grown from a single-machine CLI into a hosted, multi-tenant
+> security layer: shared `core`, opt-in CLI cloud push, a Fastify ingest API with
+> Memory+Postgres backends, cross-machine fleet baselines, a tamper-evident HMAC
+> audit log, and a read API for dashboards. The only remaining work is the
+> dashboard UI and billing (external infrastructure, not backend code).
 
 ## 1. Why a cloud layer
 
@@ -249,12 +251,28 @@ the rules in another language.
 |-------|-----------------------------------------------------------------------|-------------|
 | **0** | Monorepo; extract `core`; CLI + server bundle it; CI green            | **Done**    |
 | **1** | Fastify ingest API + `Store` (Memory+Pg) + schema + hashed API keys   | **Done**    |
-| **2** | CLI remote sink: `--cloud` config pushes observations; SQLite = cache | Planned     |
-| **3** | Fleet aggregator: consensus fingerprints + outlier (`fleet-divergence`)| Planned    |
-| **4** | Append-only HMAC audit log + signed export pack                        | Planned     |
-| **5** | Dashboard, org/team management, billing                                | Planned     |
+| **2** | CLI remote sink: opt-in cloud push (env/config), batched + retry       | **Done**    |
+| **3** | Fleet aggregator: consensus fingerprints + `fleet-divergence`          | **Done**    |
+| **4** | Append-only HMAC audit log + `/v1/audit/export`                        | **Done**    |
+| **5** | Read API (`/v1/tools`, `/v1/events`) done; dashboard UI + billing next | **Partial** |
 
-Each phase ships independently and leaves `main` releasable.
+Each phase ships independently and leaves `main` releasable. The backend is
+functionally complete; the remaining Phase 5 work is the **dashboard UI and
+billing**, which need external infrastructure (a frontend host, a payments
+provider) rather than more backend code. The read API already emits the JSON a
+dashboard consumes.
+
+### HTTP surface (implemented)
+
+| Method | Path                | Purpose                                        |
+|--------|---------------------|------------------------------------------------|
+| GET    | `/healthz`          | Liveness.                                       |
+| POST   | `/v1/ingest`        | Agent pushes tool observations; returns verdicts (temporal + fleet). |
+| GET    | `/v1/tools`         | Current tools the org is tracking.              |
+| GET    | `/v1/events`        | Recent drift + fleet events (newest first).     |
+| GET    | `/v1/audit/export`  | Hash-chained audit record + integrity check.    |
+
+All `/v1/*` routes require `Authorization: Bearer <api-key>` (checked before body parsing).
 
 ## 11. Non-goals (stay in the cloud layer, never in the CLI)
 

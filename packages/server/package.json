@@ -1,6 +1,6 @@
 {
   "name": "@opensyber/mcp-watch-server",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "private": true,
   "description": "OpenSyber cloud layer: multi-tenant ingest + analysis service for MCP tool fingerprints. Phase 1 scaffold.",
   "license": "MIT",
