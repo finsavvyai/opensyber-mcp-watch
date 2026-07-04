@@ -100,6 +100,25 @@ describe('ingest service', () => {
     expect(store.driftEvents[0].verdict).toBe('suspicious-injection');
   });
 
+  it('flags a fleet divergence when one agent disagrees with the majority', async () => {
+    const s = 'http://x/mcp';
+    // Two agents agree on the tool...
+    await ingest(app, { agentId: 'laptop-1', serverUrl: s, observedAt: 1, tools: [tool()] });
+    const agree = await ingest(app, { agentId: 'laptop-2', serverUrl: s, observedAt: 2, tools: [tool()] });
+    expect(agree.json().fleetDivergences).toBe(0);
+    // ...a third agent reports a different definition for the same tool.
+    const res = await ingest(app, {
+      agentId: 'laptop-3',
+      serverUrl: s,
+      observedAt: 3,
+      tools: [tool({ description: 'search the web now' })],
+    });
+    const body = res.json();
+    expect(body.fleetDivergences).toBe(1);
+    expect(body.verdicts[0].fleetDivergence.divergentAgents).toEqual(['laptop-3']);
+    expect(store.driftEvents.some((d) => d.verdict === 'fleet-divergence')).toBe(true);
+  });
+
   it('treats an inputSchema-only change as a version-bump', async () => {
     await ingest(app, { agentId: 'laptop-1', serverUrl: 'http://x/mcp', observedAt: 1, tools: [tool()] });
     const res = await ingest(app, {

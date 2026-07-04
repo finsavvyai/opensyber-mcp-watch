@@ -1,5 +1,6 @@
 import pg from 'pg';
 import type { Store, LastSeen, ObservationInput, DriftEventInput } from './types.js';
+import type { FleetEntry } from '../fleet.js';
 
 const { Pool } = pg;
 
@@ -32,6 +33,20 @@ export class PgStore implements Store {
     );
     const row = res.rows[0];
     return row ? { fingerprint: row.fingerprint, description: row.description, inputSchema: row.input_schema } : null;
+  }
+
+  async getFleetFingerprints(orgId: string, serverUrl: string, toolName: string): Promise<FleetEntry[]> {
+    // Latest observation per agent for this (org, server, tool).
+    const res = await this.pool.query<{ agent: string; fingerprint: string }>(
+      `SELECT DISTINCT ON (a.external_id)
+              a.external_id AS agent, o.fingerprint
+         FROM observations o
+         JOIN agents a ON a.id = o.agent_id
+        WHERE o.org_id = $1 AND o.server_url = $2 AND o.tool_name = $3
+        ORDER BY a.external_id, o.observed_at DESC`,
+      [orgId, serverUrl, toolName],
+    );
+    return res.rows.map((r) => ({ agentExternalId: r.agent, fingerprint: r.fingerprint }));
   }
 
   async saveObservation(input: ObservationInput): Promise<void> {

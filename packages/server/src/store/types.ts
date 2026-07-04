@@ -1,4 +1,8 @@
 import type { DriftVerdict } from '@opensyber/mcp-watch-core';
+import type { FleetEntry } from '../fleet.js';
+
+/** Cross-agent divergence is a server-only verdict on top of core's temporal ones. */
+export type ServerVerdict = DriftVerdict | 'fleet-divergence';
 
 /** The last fingerprint an org has seen for a given (server, tool). */
 export interface LastSeen {
@@ -27,7 +31,7 @@ export interface DriftEventInput {
   agentExternalId: string;
   serverUrl: string;
   toolName: string;
-  verdict: DriftVerdict;
+  verdict: ServerVerdict;
   oldFingerprint: string | null;
   newFingerprint: string;
   diffSummary: string;
@@ -45,6 +49,8 @@ export interface Store {
   getLastSeen(orgId: string, serverUrl: string, toolName: string): Promise<LastSeen | null>;
   /** Append to history and update the org's current fingerprint for this tool. */
   saveObservation(input: ObservationInput): Promise<void>;
+  /** Latest fingerprint per agent for a (server, tool) — powers fleet analysis. */
+  getFleetFingerprints(orgId: string, serverUrl: string, toolName: string): Promise<FleetEntry[]>;
   saveDriftEvent(input: DriftEventInput): Promise<void>;
   close(): Promise<void>;
 }

@@ -6,6 +6,7 @@ import {
   type DriftResult,
 } from '@opensyber/mcp-watch-core';
 import { bearerToken, hashApiKey } from './auth.js';
+import { analyzeFleet } from './fleet.js';
 import type { Store } from './store/types.js';
 
 /** One tool observation pushed by an agent. */
@@ -28,6 +29,11 @@ interface ToolVerdict extends DriftResult {
   fingerprint: string;
   /** True when the agent-supplied fingerprint disagrees with the server recomputation. */
   fingerprintMismatch: boolean;
+  /** Set when this agent disagrees with the org's fleet consensus for this tool. */
+  fleetDivergence?: {
+    consensusFingerprint: string;
+    divergentAgents: string[];
+  };
 }
 
 function isIngestBody(body: unknown): body is IngestBody {
@@ -111,16 +117,40 @@ export function buildApp(store: Store): FastifyInstance {
         });
       }
 
-      verdicts.push({
+      // Cross-machine check: does this agent disagree with the fleet consensus?
+      const fleet = analyzeFleet(
+        await store.getFleetFingerprints(orgId, body.serverUrl, name),
+        body.agentId,
+      );
+      const verdict: ToolVerdict = {
         toolName: name,
         fingerprint: recomputed,
         fingerprintMismatch: recomputed !== tool.fingerprint,
         ...drift,
-      });
+      };
+      if (fleet.divergent && fleet.consensusFingerprint) {
+        verdict.fleetDivergence = {
+          consensusFingerprint: fleet.consensusFingerprint,
+          divergentAgents: fleet.divergentAgents,
+        };
+        await store.saveDriftEvent({
+          orgId,
+          agentExternalId: body.agentId,
+          serverUrl: body.serverUrl,
+          toolName: name,
+          verdict: 'fleet-divergence',
+          oldFingerprint: fleet.consensusFingerprint,
+          newFingerprint: recomputed,
+          diffSummary: `agent '${body.agentId}' diverges from fleet consensus (${fleet.agentCount} agents)`,
+          detectedAt: body.observedAt,
+        });
+      }
+      verdicts.push(verdict);
     }
 
     const suspicious = verdicts.filter((v) => v.verdict === 'suspicious-injection').length;
-    return reply.send({ org: orgId, accepted: verdicts.length, suspicious, verdicts });
+    const fleetDivergences = verdicts.filter((v) => v.fleetDivergence).length;
+    return reply.send({ org: orgId, accepted: verdicts.length, suspicious, fleetDivergences, verdicts });
   });
 
   return app;
