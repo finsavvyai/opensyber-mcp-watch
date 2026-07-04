@@ -47,6 +47,28 @@ Node 20+ required. `better-sqlite3` is a native module — `pnpm rebuild better-
 - Logo redesigns
 - Renaming things
 
+## Releasing
+
+Two paths publish the public packages (`@opensyber/mcp-watch-core` and
+`@opensyber/mcp-watch`; the `server` package is `private` and never published).
+
+**Local (self-contained, recommended):**
+
+```bash
+scripts/release.sh --dry-run   # build + test + `pnpm publish --dry-run`, no upload
+scripts/release.sh             # publish to npm + push a vX.Y.Z tag
+```
+
+Requires `npm whoami` to succeed for a `@opensyber` owner. `pnpm -r publish`
+skips already-published versions and private packages, so it is idempotent.
+Bump versions in `packages/*/package.json` (and `VERSION` in
+`packages/cli/src/cli.ts`) before releasing.
+
+**CI (tag-triggered):** pushing a `vX.Y.Z` tag runs `.github/workflows/publish.yml`.
+That workflow must run **`pnpm -r publish`** (not `pnpm publish`) — the workspace
+root is `private`, so the plain command publishes nothing. Keep that line in sync
+with the local script.
+
 ## Security
 
 See [SECURITY.md](SECURITY.md). Do not file public issues for vulnerabilities.
