@@ -1,8 +1,7 @@
 import { loadConfig } from '../config.js';
 import { Storage } from '../storage.js';
 import { fetchToolsList } from '../mcp-client.js';
-import { fingerprintTool, canonicalJson } from '../fingerprint.js';
-import { classifyDrift } from '../differ.js';
+import { fingerprintTool, canonicalJson, classifyDrift } from '@opensyber/mcp-watch-core';
 import { formatAlertForConsole } from '../alert.js';
 import { c } from '../output.js';
 

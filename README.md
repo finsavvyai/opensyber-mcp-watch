@@ -134,6 +134,26 @@ This is the first piece of [OpenSyber](https://opensyber.cloud) — AI Agent Det
 - ○ Webhook alerts (Slack/Discord/PagerDuty)
 - ○ HMAC-signed export for audit packs
 
+## Repository layout
+
+This repo is a pnpm workspace:
+
+| Package | Name | What it is |
+|---|---|---|
+| `packages/core` | `@opensyber/mcp-watch-core` | Fingerprinting + drift classification. No deps, no I/O. Shared by the CLI and the cloud layer so both score drift identically. |
+| `packages/cli` | `@opensyber/mcp-watch` | This CLI / local watcher. |
+| `packages/server` | `@opensyber/mcp-watch-server` | The hosted **cloud layer** (multi-tenant ingest + fleet analysis). Early scaffold. |
+
+```bash
+pnpm install      # installs the whole workspace
+pnpm typecheck    # all packages
+pnpm test         # all packages
+pnpm build        # all packages
+```
+
+The cloud layer — multi-week history, cross-machine sync, behavioral baselines,
+and signed audit logs — is specified in [docs/cloud-architecture.md](docs/cloud-architecture.md).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: see [SECURITY.md](SECURITY.md) — please do not file public issues.

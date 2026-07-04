@@ -1,7 +1,6 @@
 import type { WatchConfig, ServerConfig } from './config.js';
 import { fetchToolsList } from './mcp-client.js';
-import { fingerprintTool, canonicalJson } from './fingerprint.js';
-import { classifyDrift } from './differ.js';
+import { fingerprintTool, canonicalJson, classifyDrift } from '@opensyber/mcp-watch-core';
 import type { DriftAlert } from './alert.js';
 import { formatAlertForConsole } from './alert.js';
 import { Storage } from './storage.js';
